@@ -138,7 +138,7 @@ async def twitter_search(query: str, max_results: int = 100) -> Dict[str, Any]:
         attempts = 0
         # Increased attempts/longer total wait time for potentially longer jobs
         max_attempts = 60 # e.g., 60 attempts * 5s = 300 seconds (5 minutes)
-        poll_interval = 20 # Seconds between status checks
+        poll_interval = 30 # Seconds between status checks
 
         while attempts < max_attempts:
             attempts += 1
@@ -218,9 +218,6 @@ async def twitter_search(query: str, max_results: int = 100) -> Dict[str, Any]:
         return {"error": "An unexpected server error occurred during Twitter search", "details": str(e)}
 
 
-# --- Other Tools (scrape_web_page, extract_search_terms, analyze_data, search_similar_twitter) ---
-# --- Remain unchanged from the previous version ---
-# ... (include the full code for the other tools here) ...
 @mcp.tool()
 async def scrape_web_page(url: str, format: str = "text") -> Dict[str, Any]:
     """
