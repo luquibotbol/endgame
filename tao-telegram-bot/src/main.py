@@ -151,32 +151,35 @@ async def analyze_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             return
 
-        # Generate report
-        report = await analyzer.generate_report(wallet_address)
+        # Get wallet analysis
+        analysis = await analyzer.analyze_wallet(wallet_address)
         
-        if "error" in report:
+        if "error" in analysis:
             await update.message.reply_text(
-                f"❌ Error: {report['error']}\n\n"
+                f"❌ Error: {analysis['error']}\n\n"
                 "Please try again later or contact support if the issue persists."
             )
             return
 
+        # Get market context
+        market_context = await analyzer.get_market_context()
+        
         # Get sentiment analysis
-        market_context = await analyzer.get_market_context(wallet_address)
-        sentiment = await sentiment_analyzer.analyze(report, market_context)
+        sentiment = await sentiment_analyzer.analyze(analysis, market_context._asdict())
 
         # Format and send the report
         report_text = (
             f"📊 *Wallet Analysis Report*\n\n"
             f"*Wallet:* `{wallet_address}`\n"
-            f"*Current Balance:* {report['current_balance']} TAO\n"
-            f"*Transaction Count:* {report['transaction_analysis']['transaction_count']}\n"
-            f"*Activity Level:* {report['activity_level']}\n\n"
+            f"*Current Balance:* {analysis['current_balance']} TAO\n"
+            f"*Transaction Count:* {analysis['transaction_analysis']['transaction_count']}\n"
+            f"*Activity Level:* {analysis['activity_level']}\n\n"
             f"*Market Context:*\n"
             f"• 24h Price Change: {market_context.price_change_24h}%\n"
-            f"• Market Volume: {market_context.market_volume} TAO\n\n"
+            f"• Market Volume: {market_context.market_volume} TAO\n"
+            f"• Market Sentiment: {market_context.market_sentiment}\n\n"
             f"*Sentiment Analysis:*\n{sentiment}\n\n"
-            f"*Last Updated:* {report['last_updated']}\n\n"
+            f"*Last Updated:* {analysis['last_updated']}\n\n"
             "Use /portfolio to save this wallet for tracking."
         )
 
@@ -198,7 +201,7 @@ async def analyze_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
     except Exception as e:
-        logger.error(f"Error in analyze_wallet: {e}")
+        logger.error(f"Error analyzing wallet: {e}")
         await update.message.reply_text(
             "❌ An error occurred while analyzing the wallet. Please try again later."
         )
