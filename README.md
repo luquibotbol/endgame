@@ -1,0 +1,2 @@
+# endgame
+Bittensors endgame hackathons
