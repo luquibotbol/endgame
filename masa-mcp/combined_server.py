@@ -8,9 +8,17 @@ import logging
 from dotenv import load_dotenv
 from typing import Dict, Any, List, Optional, Union # Ensure necessary typing hints are available
 
+
+logging.getLogger().setLevel(logging.CRITICAL)
+
 # --- Configuration ---
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='server_logs.log',
+    filemode='a'
+)
 logger = logging.getLogger(__name__)
 
 # Masa API Configuration

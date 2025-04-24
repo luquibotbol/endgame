@@ -36,20 +36,25 @@ async def setup_agent():
                 print(f"Loaded tools: {tool_names}")
                 agent = create_react_agent(model, tools)
 
-                question = "Whats the twitter sentiment for the TAO bittensor token?"
+                question = input ("Ask the agent a question: ")
+                if not question:
+                    print("No question provided. Exiting.")
+                    return
+                
                 print(f"Invoking agent with question: '{question}'")
 
                 agent_input = {"messages": [HumanMessage(content=question)]}
                 agent_response = await agent.ainvoke(agent_input)
 
                 print("\n--- Agent Response ---")
-                print(agent_response)
+                print(agent_response["messages"][2])
+                print("\n\n")
 
-                if isinstance(agent_response, dict) and "messages" in agent_response:
-                    final_message = agent_response["messages"][-1]
-                    print(f"\nFinal Answer Content: {final_message.content}")
-                else:
-                    print("\nCould not extract final answer from the response structure.")
+                #if isinstance(agent_response, dict) and "messages" in agent_response:
+                    #final_message = agent_response["ToolMessage"]
+                    #print(f"\n>>>Response: \n\n{final_message}")
+                #else:
+                    #print("\nCould not extract final answer from the response structure.")
 
 
 
