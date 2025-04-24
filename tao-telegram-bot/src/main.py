@@ -10,8 +10,11 @@ from alerts import AlertManager, Alert, AlertType
 from datetime import datetime, timedelta
 import json
 
-# Load environment variables from .env.local
-load_dotenv('.env.local')
+# Load environment variables
+load_dotenv('../.env.local')  # Use relative path from src directory
+token = os.getenv('TELEGRAM_BOT_TOKEN')
+if not token:
+    raise ValueError("TELEGRAM_BOT_TOKEN not found in .env.local file")
 
 # Configure logging
 logging.basicConfig(
