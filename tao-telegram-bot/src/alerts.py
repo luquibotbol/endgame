@@ -1,229 +1,146 @@
 import logging
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from enum import Enum
+from typing import List, Dict, Any
+from datetime import datetime
+from enum import Enum, auto
 
 logger = logging.getLogger(__name__)
 
 class AlertType(Enum):
-    PRICE = "price"
-    BALANCE = "balance"
-    VOLUME = "volume"
-    STAKING = "staking"
-    TRANSACTION = "transaction"
+    """Types of alerts supported by the system."""
+    BALANCE = auto()
+    PRICE = auto()
+    ACTIVITY = auto()
+    WHALE = auto()
 
-@dataclass
 class Alert:
-    wallet_address: str
-    alert_type: AlertType
-    threshold: float
-    condition: str  # "above" or "below"
-    user_id: int
-    created_at: datetime
-    last_triggered: datetime = None
-    notification_frequency: str = "hourly"  # hourly, daily, weekly
-    is_active: bool = True
+    """Alert configuration for a wallet."""
+    def __init__(
+        self,
+        user_id: int,
+        wallet_address: str,
+        alert_type: AlertType,
+        threshold: float,
+        created_at: datetime
+    ):
+        self.user_id = user_id
+        self.wallet_address = wallet_address
+        self.alert_type = alert_type
+        self.threshold = threshold
+        self.created_at = created_at
+        self.last_triggered = None
+        self.is_active = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert alert to dictionary format."""
+        return {
+            "user_id": self.user_id,
+            "wallet_address": self.wallet_address,
+            "alert_type": self.alert_type.name,
+            "threshold": self.threshold,
+            "created_at": self.created_at.isoformat(),
+            "last_triggered": self.last_triggered.isoformat() if self.last_triggered else None,
+            "is_active": self.is_active
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Alert':
+        """Create alert from dictionary format."""
+        return cls(
+            user_id=data["user_id"],
+            wallet_address=data["wallet_address"],
+            alert_type=AlertType[data["alert_type"]],
+            threshold=data["threshold"],
+            created_at=datetime.fromisoformat(data["created_at"])
+        )
 
 class AlertManager:
+    """Manages alerts for all users."""
     def __init__(self):
-        self.alerts: Dict[str, List[Alert]] = {}
-        self.notification_history: Dict[str, List[datetime]] = {}
+        self.alerts: Dict[int, List[Alert]] = {}  # user_id -> list of alerts
 
-    def add_alert(self, alert: Alert) -> bool:
-        """Add a new alert."""
-        if alert.wallet_address not in self.alerts:
-            self.alerts[alert.wallet_address] = []
-            self.notification_history[alert.wallet_address] = []
-        
-        # Check for duplicate alerts
-        for existing_alert in self.alerts[alert.wallet_address]:
-            if (existing_alert.alert_type == alert.alert_type and
-                existing_alert.threshold == alert.threshold and
-                existing_alert.condition == alert.condition):
-                return False
-        
-        self.alerts[alert.wallet_address].append(alert)
-        return True
+    def add_alert(self, alert: Alert) -> None:
+        """Add a new alert for a user."""
+        if alert.user_id not in self.alerts:
+            self.alerts[alert.user_id] = []
+        self.alerts[alert.user_id].append(alert)
+        logger.info(f"Added alert for user {alert.user_id}: {alert.alert_type.name}")
 
-    def remove_alert(self, wallet_address: str, alert_type: AlertType, user_id: int) -> bool:
-        """Remove an existing alert."""
-        if wallet_address not in self.alerts:
-            return False
-        
-        alerts = self.alerts[wallet_address]
-        for i, alert in enumerate(alerts):
-            if alert.alert_type == alert_type and alert.user_id == user_id:
-                del alerts[i]
-                if not alerts:
-                    del self.alerts[wallet_address]
-                    del self.notification_history[wallet_address]
+    def remove_alert(self, user_id: int, alert_index: int) -> bool:
+        """Remove an alert by its index."""
+        try:
+            if user_id in self.alerts and 0 <= alert_index < len(self.alerts[user_id]):
+                self.alerts[user_id].pop(alert_index)
+                logger.info(f"Removed alert {alert_index} for user {user_id}")
                 return True
-        
-        return False
+            return False
+        except Exception as e:
+            logger.error(f"Error removing alert: {e}")
+            return False
 
-    def toggle_alert(self, wallet_address: str, alert_type: AlertType, user_id: int) -> bool:
+    def get_user_alerts(self, user_id: int) -> List[Alert]:
+        """Get all alerts for a user."""
+        return self.alerts.get(user_id, [])
+
+    def get_wallet_alerts(self, user_id: int, wallet_address: str) -> List[Alert]:
+        """Get all alerts for a specific wallet."""
+        return [
+            alert for alert in self.get_user_alerts(user_id)
+            if alert.wallet_address == wallet_address
+        ]
+
+    def toggle_alert(self, user_id: int, alert_index: int) -> bool:
         """Toggle an alert's active status."""
-        if wallet_address not in self.alerts:
-            return False
-        
-        for alert in self.alerts[wallet_address]:
-            if alert.alert_type == alert_type and alert.user_id == user_id:
+        try:
+            if user_id in self.alerts and 0 <= alert_index < len(self.alerts[user_id]):
+                alert = self.alerts[user_id][alert_index]
                 alert.is_active = not alert.is_active
+                logger.info(f"Toggled alert {alert_index} for user {user_id}: {alert.is_active}")
                 return True
-        
-        return False
-
-    def get_alerts(self, wallet_address: str, user_id: int) -> List[Alert]:
-        """Get all alerts for a specific wallet and user."""
-        if wallet_address not in self.alerts:
-            return []
-        
-        return [alert for alert in self.alerts[wallet_address] if alert.user_id == user_id]
-
-    def can_send_notification(self, alert: Alert) -> bool:
-        """Check if a notification can be sent based on frequency."""
-        if not alert.is_active:
+            return False
+        except Exception as e:
+            logger.error(f"Error toggling alert: {e}")
             return False
 
-        if alert.wallet_address not in self.notification_history:
-            return True
-
-        last_notification = self.notification_history[alert.wallet_address][-1] if self.notification_history[alert.wallet_address] else None
-        
-        if not last_notification:
-            return True
-
-        now = datetime.now()
-        if alert.notification_frequency == "hourly":
-            return now - last_notification >= timedelta(hours=1)
-        elif alert.notification_frequency == "daily":
-            return now - last_notification >= timedelta(days=1)
-        elif alert.notification_frequency == "weekly":
-            return now - last_notification >= timedelta(weeks=1)
-        
-        return True
-
-    def record_notification(self, wallet_address: str):
-        """Record a notification for rate limiting."""
-        if wallet_address not in self.notification_history:
-            self.notification_history[wallet_address] = []
-        
-        self.notification_history[wallet_address].append(datetime.now())
-        # Keep only the last 100 notifications
-        self.notification_history[wallet_address] = self.notification_history[wallet_address][-100:]
-
-    def check_price_alert(self, wallet_address: str, current_price: float) -> List[Alert]:
-        """Check if any price alerts should be triggered."""
+    async def check_alerts(self, wallet_data: Dict[str, Any]) -> List[Alert]:
+        """Check if any alerts should be triggered based on wallet data."""
         triggered_alerts = []
-        if wallet_address not in self.alerts:
-            return triggered_alerts
         
-        for alert in self.alerts[wallet_address]:
-            if alert.alert_type != AlertType.PRICE or not alert.is_active:
-                continue
+        try:
+            for user_alerts in self.alerts.values():
+                for alert in user_alerts:
+                    if not alert.is_active:
+                        continue
+                        
+                    if alert.wallet_address != wallet_data["address"]:
+                        continue
+
+                    should_trigger = False
+                    
+                    if alert.alert_type == AlertType.BALANCE:
+                        current_balance = wallet_data.get("current_balance", 0)
+                        should_trigger = current_balance >= alert.threshold
+                        
+                    elif alert.alert_type == AlertType.PRICE:
+                        current_price = wallet_data.get("market_context", {}).get("price", 0)
+                        should_trigger = current_price >= alert.threshold
+                        
+                    elif alert.alert_type == AlertType.ACTIVITY:
+                        tx_count = wallet_data.get("transaction_analysis", {}).get("transaction_count", 0)
+                        should_trigger = tx_count >= alert.threshold
+                        
+                    elif alert.alert_type == AlertType.WHALE:
+                        transactions = wallet_data.get("transaction_analysis", {}).get("transactions", [])
+                        for tx in transactions:
+                            if tx.get("amount", 0) >= alert.threshold:
+                                should_trigger = True
+                                break
+
+                    if should_trigger:
+                        alert.last_triggered = datetime.now()
+                        triggered_alerts.append(alert)
+                        logger.info(f"Alert triggered for user {alert.user_id}: {alert.alert_type.name}")
+                        
+        except Exception as e:
+            logger.error(f"Error checking alerts: {e}")
             
-            should_trigger = False
-            if alert.condition == "above" and current_price > alert.threshold:
-                should_trigger = True
-            elif alert.condition == "below" and current_price < alert.threshold:
-                should_trigger = True
-            
-            if should_trigger and self.can_send_notification(alert):
-                alert.last_triggered = datetime.now()
-                triggered_alerts.append(alert)
-                self.record_notification(wallet_address)
-        
         return triggered_alerts
-
-    def check_balance_alert(self, wallet_address: str, current_balance: float) -> List[Alert]:
-        """Check if any balance alerts should be triggered."""
-        triggered_alerts = []
-        if wallet_address not in self.alerts:
-            return triggered_alerts
-        
-        for alert in self.alerts[wallet_address]:
-            if alert.alert_type != AlertType.BALANCE or not alert.is_active:
-                continue
-            
-            should_trigger = False
-            if alert.condition == "above" and current_balance > alert.threshold:
-                should_trigger = True
-            elif alert.condition == "below" and current_balance < alert.threshold:
-                should_trigger = True
-            
-            if should_trigger and self.can_send_notification(alert):
-                alert.last_triggered = datetime.now()
-                triggered_alerts.append(alert)
-                self.record_notification(wallet_address)
-        
-        return triggered_alerts
-
-    def check_volume_alert(self, wallet_address: str, current_volume: float) -> List[Alert]:
-        """Check if any volume alerts should be triggered."""
-        triggered_alerts = []
-        if wallet_address not in self.alerts:
-            return triggered_alerts
-        
-        for alert in self.alerts[wallet_address]:
-            if alert.alert_type != AlertType.VOLUME or not alert.is_active:
-                continue
-            
-            should_trigger = False
-            if alert.condition == "above" and current_volume > alert.threshold:
-                should_trigger = True
-            elif alert.condition == "below" and current_volume < alert.threshold:
-                should_trigger = True
-            
-            if should_trigger and self.can_send_notification(alert):
-                alert.last_triggered = datetime.now()
-                triggered_alerts.append(alert)
-                self.record_notification(wallet_address)
-        
-        return triggered_alerts
-
-    def check_staking_alert(self, wallet_address: str, staking_info: Dict[str, Any]) -> List[Alert]:
-        """Check if any staking alerts should be triggered."""
-        triggered_alerts = []
-        if wallet_address not in self.alerts:
-            return triggered_alerts
-        
-        for alert in self.alerts[wallet_address]:
-            if alert.alert_type != AlertType.STAKING or not alert.is_active:
-                continue
-            
-            should_trigger = False
-            if alert.condition == "above" and staking_info.get("rewards", 0) > alert.threshold:
-                should_trigger = True
-            elif alert.condition == "below" and staking_info.get("rewards", 0) < alert.threshold:
-                should_trigger = True
-            
-            if should_trigger and self.can_send_notification(alert):
-                alert.last_triggered = datetime.now()
-                triggered_alerts.append(alert)
-                self.record_notification(wallet_address)
-        
-        return triggered_alerts
-
-    def check_transaction_alert(self, wallet_address: str, transaction_info: Dict[str, Any]) -> List[Alert]:
-        """Check if any transaction alerts should be triggered."""
-        triggered_alerts = []
-        if wallet_address not in self.alerts:
-            return triggered_alerts
-        
-        for alert in self.alerts[wallet_address]:
-            if alert.alert_type != AlertType.TRANSACTION or not alert.is_active:
-                continue
-            
-            should_trigger = False
-            if alert.condition == "above" and transaction_info.get("amount", 0) > alert.threshold:
-                should_trigger = True
-            elif alert.condition == "below" and transaction_info.get("amount", 0) < alert.threshold:
-                should_trigger = True
-            
-            if should_trigger and self.can_send_notification(alert):
-                alert.last_triggered = datetime.now()
-                triggered_alerts.append(alert)
-                self.record_notification(wallet_address)
-        
-        return triggered_alerts 
