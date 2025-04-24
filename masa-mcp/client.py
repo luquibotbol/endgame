@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage # Import needed for standard in
 # 1. IMPORTANT: Update this to the full *absolute* path to your math_server.py file
 #    Example Linux/macOS: "/home/user/projects/my_mcp_server/math_server.py"
 #    Example Windows: "C:/Users/user/projects/my_mcp_server/math_server.py"
-MATH_SERVER_PATH = r"/Users/shreybirmiwal/projects/endgame/masa-mcp/src/server.py" # <<< CHANGE THIS
+MATH_SERVER_PATH = r"C:\Users\shrey\projects\endgame\masa-mcp\server.py" # <<< CHANGE THIS
 
 # 2. Custom LLM Configuration
 # It's best practice to load keys from environment variables, but direct assignment is shown here.
@@ -37,7 +37,7 @@ async def run_agent():
 
     # Server parameters for stdio connection
     server_params = StdioServerParameters(
-        command="python3", # Make sure 'python' is in your PATH or use the full path to the python executable
+        command="python", # Make sure 'python' is in your PATH or use the full path to the python executable
         args=[MATH_SERVER_PATH],
     )
     print(f"Preparing to connect to stdio server: python {MATH_SERVER_PATH}")
