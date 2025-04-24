@@ -7,7 +7,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage 
 
-MCP_SERVER_PATH = r"C:\Users\shrey\projects\endgame\masa-mcp\server.py"
+MCP_SERVER_PATH = r"server.py"
 
 async def setup_agent():
     """Runs the MCP client and LangGraph agent."""
@@ -20,7 +20,7 @@ async def setup_agent():
 
 
     server_params = StdioServerParameters(
-        command="python",
+        command="python3",
         args=[MCP_SERVER_PATH],
     )
 
