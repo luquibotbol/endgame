@@ -82,7 +82,7 @@ async def _make_masa_api_request(
         logger.error("Masa API Key is not set, cannot make Masa API request.")
         return {"error": "Configuration Error", "details": "Masa API key not found."}
 
-    headers = {"Authorization": f"Bearer {MASA_API_KEY}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"{MASA_API_KEY}", "Content-Type": "application/json"}
     # Ensure endpoint starts with '/' if MASA_API_BASE_URL doesn't end with one
     endpoint_path = endpoint if endpoint.startswith('/') else f"/{endpoint}"
     url = f"{MASA_API_BASE_URL}{endpoint_path}"
@@ -159,8 +159,13 @@ async def _make_tm_api_request(
 
     # Using Bearer Token authorization for V2 as per metricmcp.py update
     headers = {
-        "Authorization": f"Bearer {TM_API_KEY}",
+        # Change this line:
+        # FROM: "Authorization": f"Bearer {TM_API_KEY}",
+        # TO: Use the header name explicitly shown in their documentation:
+        "api_key": TM_API_KEY,
+        # Keep the Accept header as shown in their documentation
         "Accept": "application/json",
+        # "Content-Type": "application/json" # httpx adds this for POST when json= is used
     }
     # Ensure endpoint starts with '/' if TM_API_BASE_URL doesn't end with one
     endpoint_path = endpoint if endpoint.startswith('/') else f"/{endpoint}"
